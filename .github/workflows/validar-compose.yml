@@ -1,0 +1,38 @@
+name: Validar ambiente academico
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Obter os dois repositorios publicos
+        run: |
+          git clone "https://github.com/${GITHUB_REPOSITORY}.git" conta-comigo-academico-api
+          git -C conta-comigo-academico-api checkout "$GITHUB_SHA"
+          git clone https://github.com/guicamarg0/conta-comigo-academico-web.git conta-comigo-academico-web
+      - name: Subir banco API e frontend
+        working-directory: conta-comigo-academico-api
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          docker compose up --build -d --wait --wait-timeout 300
+      - name: Validar proxy login unidade e renovacao
+        working-directory: conta-comigo-academico-api
+        run: python3 scripts/verificar_compose.py
+      - name: Estado dos containers
+        if: always()
+        working-directory: conta-comigo-academico-api
+        run: docker compose ps
+      - name: Logs em caso de falha
+        if: failure()
+        working-directory: conta-comigo-academico-api
+        run: docker compose logs --tail=100
+      - name: Encerrar ambiente de teste
+        if: always()
+        working-directory: conta-comigo-academico-api
+        run: docker compose down --volumes

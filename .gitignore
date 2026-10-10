@@ -1,0 +1,31 @@
+# Maven / Java
+target/
+*.class
+*.jar
+*.war
+!mvn/wrapper/maven-wrapper.jar
+
+# Spring / ambiente local
+.env
+.env.*
+!.env.example
+application-local.properties
+application-prod.properties
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# Logs e arquivos locais
+*.log
+logs/
+uploads/
+tmp/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db

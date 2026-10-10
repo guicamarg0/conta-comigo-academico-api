@@ -1,0 +1,9 @@
+app:
+  acesso:
+    cadastroPublico: false
+    somenteGeralCriaUnidade: true
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 0

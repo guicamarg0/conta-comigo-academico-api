@@ -1,0 +1,22 @@
+app:
+  acesso:
+    cadastroPublico: false
+    somenteGeralCriaUnidade: true
+  jwt:
+    segredo: ${JWT_SECRET}
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 0
+      idle-timeout: 60000
+server:
+  port: ${PORT:8080}
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
