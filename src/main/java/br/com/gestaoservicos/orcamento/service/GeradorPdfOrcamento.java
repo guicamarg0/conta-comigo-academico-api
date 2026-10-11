@@ -1,8 +1,10 @@
 package br.com.gestaoservicos.orcamento.service;
 
+import br.com.gestaoservicos.compartilhado.GeradorPdf;
 import br.com.gestaoservicos.orcamento.model.*;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
@@ -18,12 +20,19 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
-public class GeradorPdfOrcamento {
+public class GeradorPdfOrcamento extends GeradorPdf<RevisaoOrcamento> {
     private static final DateTimeFormatter DATA = DateTimeFormatter.ofPattern("dd/MM/uuuu");
     private final ObjectMapper json;
     public GeradorPdfOrcamento(ObjectMapper json) { this.json = json; }
 
+    // Mantém a assinatura usada pelo OrcamentoService e pelos testes.
     public byte[] gerar(Orcamento orcamento, RevisaoOrcamento revisao) {
+        return gerar(revisao);
+    }
+
+    @Override
+    protected byte[] renderizarConteudo(RevisaoOrcamento revisao) throws Exception {
+        var orcamento = revisao.getOrcamento();
         var emitente = ler(revisao.getContratadoSnapshot());
         var cliente = ler(revisao.getContratanteSnapshot());
         StringBuilder itens = new StringBuilder();
@@ -31,23 +40,23 @@ public class GeradorPdfOrcamento {
         String ultimoItem = "";
         for (var item : revisao.getItens()) {
             var linha = new StringBuilder("<tr><td class='centro'>").append(numero++)
-                .append("</td><td>").append(texto(item.getDescricao()))
-                .append("</td><td class='centro'>").append(decimal(item.getQuantidade()))
-                .append("</td><td class='valor'>").append(moeda(item.getValorUnitario()))
-                .append("</td><td class='valor'>").append(moeda(item.getTotal())).append("</td></tr>");
+                    .append("</td><td>").append(texto(item.getDescricao()))
+                    .append("</td><td class='centro'>").append(decimal(item.getQuantidade()))
+                    .append("</td><td class='valor'>").append(moeda(item.getValorUnitario()))
+                    .append("</td><td class='valor'>").append(moeda(item.getTotal())).append("</td></tr>");
             if (numero > revisao.getItens().size()) ultimoItem = linha.toString();
             else itens.append(linha);
         }
         String ajustes = "";
         if (revisao.getDescontoTotal().signum() != 0 || revisao.getAcrescimoTotal().signum() != 0) {
             ajustes = total("Subtotal", revisao.getSubtotal(), "")
-                + total("Desconto", revisao.getDescontoTotal().negate(), "")
-                + total("Acréscimo", revisao.getAcrescimoTotal(), "");
+                    + total("Desconto", revisao.getDescontoTotal().negate(), "")
+                    + total("Acréscimo", revisao.getAcrescimoTotal(), "");
         }
         String logo = campo(emitente, "logoUrl", "");
         // Logos enviadas pelo cadastro são incorporadas, sem acesso a URLs externas.
         String marca = logo.matches("data:image/(png|jpeg);base64,[A-Za-z0-9+/=]+")
-            ? "<img class='logo' src='" + logo + "' alt='' />" : "";
+                ? "<img class='logo' src='" + logo + "' alt='' />" : "";
         String html = """
             <!DOCTYPE html><html><head><meta charset="UTF-8" />
             <style>
@@ -91,40 +100,45 @@ public class GeradorPdfOrcamento {
                 parte(emitente, "enderecoCompleto", "Emitente não informado"),
                 parte(cliente, "endereco", "Proposta sem destinatário"), tabelaItens(itens.toString()), ultimoItem, ajustes,
                 total("TOTAL DO PEDIDO", revisao.getTotalFinal(), "total"), condicoes(revisao));
-        try {
-            String cabecalho = "<thead><tr><th>Item</th><th>Descrição</th><th>Qtde.</th><th>Valor Unitário</th><th>Valor Total</th></tr></thead>";
-            byte[] bytes = renderizar(html.replace("<!--CABECALHO_FINAL-->", itens.isEmpty() ? cabecalho : ""));
-            try (var previa = Loader.loadPDF(bytes)) {
-                var extrator = new PDFTextStripper();
-                extrator.setStartPage(previa.getNumberOfPages());
-                extrator.setEndPage(previa.getNumberOfPages());
-                String ultimaPagina = extrator.getText(previa);
-                if (previa.getNumberOfPages() > 1 && ultimaPagina.contains("TOTAL DO PEDIDO")
-                        && !ultimaPagina.contains("Valor Unitário"))
-                    bytes = renderizar(html.replace("<!--CABECALHO_FINAL-->", cabecalho));
-            }
-            try (var documento = Loader.loadPDF(bytes);
-                 var fonteStream = getClass().getResourceAsStream("/fonts/NotoSans-Regular.ttf");
-                 var resultado = new ByteArrayOutputStream()) {
-                br.com.gestaoservicos.compartilhado.PapelTimbrado.aplicar(documento);
-                var fonte = PDType0Font.load(documento, fonteStream);
-                var pagina = documento.getPage(documento.getNumberOfPages() - 1);
-                if(revisao.isExibirAssinatura()) try (var tela = new PDPageContentStream(documento, pagina, PDPageContentStream.AppendMode.APPEND, true, true)) {
-                    assinatura(tela, fonte, 43, campo(emitente, "nomeRazaoSocial", "Emitente"), "Contratada / Emitente");
-                    assinatura(tela, fonte, 312, campo(cliente, "nomeRazaoSocial", "Contratante"), "Contratante / Cliente");
-                }
-                documento.save(resultado);
-                return resultado.toByteArray();
-            }
-        } catch (Exception e) { throw new IllegalStateException("Não foi possível gerar o PDF do orçamento", e); }
+        String cabecalho = "<thead><tr><th>Item</th><th>Descrição</th><th>Qtde.</th><th>Valor Unitário</th><th>Valor Total</th></tr></thead>";
+        byte[] bytes = renderizar(html.replace("<!--CABECALHO_FINAL-->", itens.isEmpty() ? cabecalho : ""));
+        try (var previa = Loader.loadPDF(bytes)) {
+            var extrator = new PDFTextStripper();
+            extrator.setStartPage(previa.getNumberOfPages());
+            extrator.setEndPage(previa.getNumberOfPages());
+            String ultimaPagina = extrator.getText(previa);
+            if (previa.getNumberOfPages() > 1 && ultimaPagina.contains("TOTAL DO PEDIDO")
+                    && !ultimaPagina.contains("Valor Unitário"))
+                bytes = renderizar(html.replace("<!--CABECALHO_FINAL-->", cabecalho));
+        }
+        return bytes;
     }
+
+    @Override
+    protected boolean exibirAssinaturas(RevisaoOrcamento revisao) {
+        return revisao.isExibirAssinatura();
+    }
+
+    @Override
+    protected void desenharAssinaturas(PDPageContentStream tela, PDType0Font fonte, PDPage pagina, RevisaoOrcamento revisao) throws java.io.IOException {
+        var emitente = ler(revisao.getContratadoSnapshot());
+        var cliente = ler(revisao.getContratanteSnapshot());
+        assinatura(tela, fonte, 43, campo(emitente, "nomeRazaoSocial", "Emitente"), "Contratada / Emitente");
+        assinatura(tela, fonte, 312, campo(cliente, "nomeRazaoSocial", "Contratante"), "Contratante / Cliente");
+    }
+
+    @Override
+    protected String mensagemErro() {
+        return "Não foi possível gerar o PDF do orçamento";
+    }
+
     private byte[] renderizar(String html) throws Exception {
         try (var saida = new ByteArrayOutputStream()) {
             var builder = new PdfRendererBuilder();
             builder.useFont(() -> getClass().getResourceAsStream("/fonts/NotoSans-Regular.ttf"), "Noto Sans", 400,
-                com.openhtmltopdf.outputdevice.helper.BaseRendererBuilder.FontStyle.NORMAL, true);
+                    com.openhtmltopdf.outputdevice.helper.BaseRendererBuilder.FontStyle.NORMAL, true);
             builder.useFont(() -> getClass().getResourceAsStream("/fonts/NotoSans-Bold.ttf"), "Noto Sans", 700,
-                com.openhtmltopdf.outputdevice.helper.BaseRendererBuilder.FontStyle.NORMAL, true);
+                    com.openhtmltopdf.outputdevice.helper.BaseRendererBuilder.FontStyle.NORMAL, true);
             builder.withHtmlContent(html, null).toStream(saida).run();
             return saida.toByteArray();
         }
@@ -132,8 +146,8 @@ public class GeradorPdfOrcamento {
     private String tabelaItens(String linhas) {
         if (linhas.isEmpty()) return "";
         return "<table class='itens'><colgroup><col style='width:7%'/><col style='width:45%'/><col style='width:9%'/><col style='width:19%'/><col style='width:20%'/></colgroup>"
-            + "<thead><tr><th>Item</th><th>Descrição</th><th>Qtde.</th><th>Valor Unitário</th><th>Valor Total</th></tr></thead><tbody>"
-            + linhas + "</tbody></table>";
+                + "<thead><tr><th>Item</th><th>Descrição</th><th>Qtde.</th><th>Valor Unitário</th><th>Valor Total</th></tr></thead><tbody>"
+                + linhas + "</tbody></table>";
     }
     private String parte(JsonNode parte, String endereco, String vazio) {
         if (parte == null || parte.isEmpty()) return texto(vazio);
