@@ -18,6 +18,10 @@ public class Orcamento extends Auditavel {
     public Orcamento(Unidade unidade, String numero) { this.id = UUID.randomUUID(); this.unidade = unidade; this.numero = numero; this.revisaoAtual = 1; this.status = StatusOrcamento.RASCUNHO; }
     public void atualizarNumero(String numero) { this.numero = numero; }
     public void atualizarStatus(StatusOrcamento status) { this.status = status; if (status == StatusOrcamento.EMITIDO) this.emitidoInicialmente = true; }
+    public void emitir()   { atualizarStatus(status.estado().emitir()); }
+    public void aprovar()  { atualizarStatus(status.estado().aprovar()); }
+    public void recusar()  { atualizarStatus(status.estado().recusar()); }
+    public void cancelar() { atualizarStatus(status.estado().cancelar()); }
     public void avancarRevisao() { revisaoAtual++; status = StatusOrcamento.RASCUNHO; }
     public UUID getUnidadeId() { return unidade.getId(); }
     public UUID getId() { return id; } public String getNumero() { return numero; } public int getRevisaoAtual() { return revisaoAtual; } public StatusOrcamento getStatus() { return status; } public boolean isEmitidoInicialmente() { return emitidoInicialmente; }
