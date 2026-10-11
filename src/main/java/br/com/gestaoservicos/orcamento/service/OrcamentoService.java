@@ -1,5 +1,6 @@
 package br.com.gestaoservicos.orcamento.service;
 
+import br.com.gestaoservicos.arquivo.service.ArmazenamentoArquivos;
 import br.com.gestaoservicos.catalogo.model.*;
 import br.com.gestaoservicos.catalogo.repository.ItemCatalogoRepository;
 import br.com.gestaoservicos.compartilhado.paginacao.PaginaResponseDTO;
@@ -12,21 +13,21 @@ import br.com.gestaoservicos.orcamento.mapper.OrcamentoMapper;
 import br.com.gestaoservicos.orcamento.model.*;
 import br.com.gestaoservicos.orcamento.repository.*;
 import br.com.gestaoservicos.unidade.repository.UnidadeRepository;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import java.math.*; import java.time.*; import java.util.*;
+import java.math.*;
+import java.util.*;
 import tools.jackson.databind.ObjectMapper;
 
 @Service public class OrcamentoService {
- private final br.com.gestaoservicos.arquivo.service.SupabaseStorageService storage;
+ private final ArmazenamentoArquivos storage;
  private final br.com.gestaoservicos.configuracaounidade.service.CodigosUnidadeService codigos;
  private final OrcamentoRepository orcamentos; private final RevisaoOrcamentoRepository revisoes; private final EventoOrcamentoRepository eventos; private final PdfOrcamentoRepository pdfs; private final UnidadeRepository unidades; private final ContratanteRepository contratantes; private final ItemCatalogoRepository catalogo; private final ConfiguracaoUnidadeRepository configuracoes; private final FormaRecebimentoRepository formasRecebimento; private final OrcamentoMapper mapper; private final JdbcTemplate jdbc; private final ObjectMapper json; private final GeradorPdfOrcamento geradorPdf; private final br.com.gestaoservicos.empresa.repository.EmpresaRepository empresas;
- public OrcamentoService(OrcamentoRepository o,RevisaoOrcamentoRepository r,EventoOrcamentoRepository e,PdfOrcamentoRepository p,UnidadeRepository u,ContratanteRepository c,ItemCatalogoRepository i,ConfiguracaoUnidadeRepository conf,FormaRecebimentoRepository fr,OrcamentoMapper m,JdbcTemplate j,ObjectMapper json,GeradorPdfOrcamento g,br.com.gestaoservicos.empresa.repository.EmpresaRepository empresas,br.com.gestaoservicos.arquivo.service.SupabaseStorageService storage,br.com.gestaoservicos.configuracaounidade.service.CodigosUnidadeService codigos){this.codigos=codigos;this.storage=storage;orcamentos=o;revisoes=r;eventos=e;pdfs=p;unidades=u;contratantes=c;catalogo=i;configuracoes=conf;formasRecebimento=fr;mapper=m;jdbc=j;this.json=json;geradorPdf=g;this.empresas=empresas;}
+ public OrcamentoService(OrcamentoRepository o, RevisaoOrcamentoRepository r, EventoOrcamentoRepository e, PdfOrcamentoRepository p, UnidadeRepository u, ContratanteRepository c, ItemCatalogoRepository i, ConfiguracaoUnidadeRepository conf, FormaRecebimentoRepository fr, OrcamentoMapper m, JdbcTemplate j, ObjectMapper json, GeradorPdfOrcamento g, br.com.gestaoservicos.empresa.repository.EmpresaRepository empresas, ArmazenamentoArquivos storage, br.com.gestaoservicos.configuracaounidade.service.CodigosUnidadeService codigos){this.codigos=codigos;this.storage=storage;orcamentos=o;revisoes=r;eventos=e;pdfs=p;unidades=u;contratantes=c;catalogo=i;configuracoes=conf;formasRecebimento=fr;mapper=m;jdbc=j;this.json=json;geradorPdf=g;this.empresas=empresas;}
  @Transactional(readOnly=true) public PaginaResponseDTO<OrcamentoResponseDTO> listar(UUID unidadeId,String busca,StatusOrcamento status,Pageable paginacao){String termo=limparOpcional(busca);return PaginaResponseDTO.de(orcamentos.buscar(unidadeId,termo==null?"":termo,status,paginacao).map(o->resposta(o)));}
  @Transactional(readOnly=true) public OrcamentoResponseDTO consultar(UUID unidadeId,UUID id){return resposta(obter(unidadeId,id));}
  @Transactional public OrcamentoResponseDTO criar(UUID unidadeId,OrcamentoRequestDTO dto,UUID usuario){var unidade=unidades.findById(unidadeId).orElseThrow(naoEncontrado("Unidade")); String numero=limparOpcional(dto.numero()); if(numero==null) numero=proximoNumero(unidadeId); validarNumero(unidadeId,numero,null); Orcamento o=orcamentos.save(new Orcamento(unidade,numero)); RevisaoOrcamento r=new RevisaoOrcamento(o,1); atualizarRevisao(unidadeId,r,comCondicoesPadrao(unidadeId,dto)); revisoes.save(r); evento(o,r,TipoEventoOrcamento.CRIADO,null,usuario); return resposta(o);}
