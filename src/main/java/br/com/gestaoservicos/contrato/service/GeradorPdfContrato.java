@@ -3,7 +3,8 @@ package br.com.gestaoservicos.contrato.service;
 import br.com.gestaoservicos.contrato.model.Contrato;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import com.openhtmltopdf.outputdevice.helper.BaseRendererBuilder.FontStyle;
-import org.apache.pdfbox.Loader;
+import br.com.gestaoservicos.compartilhado.GeradorPdf;
+import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.jsoup.Jsoup;
@@ -13,8 +14,9 @@ import java.io.ByteArrayOutputStream;
 import java.util.List;
 
 @Service
-public class GeradorPdfContrato {
-    public byte[] gerar(Contrato contrato) {
+public class GeradorPdfContrato extends GeradorPdf<Contrato> {
+    @Override
+    protected byte[] renderizarConteudo(Contrato contrato) throws Exception {
         try (var saida = new ByteArrayOutputStream()) {
             String html = """
                 <!DOCTYPE html><html><head><meta charset="UTF-8" />
@@ -43,24 +45,20 @@ public class GeradorPdfContrato {
                 }
             }
             builder.withHtmlContent(html, null).toStream(saida).run();
-            // Reserva espaço no layout e desenha apenas na última página, sem repetir assinaturas.
-            try (var documento = Loader.loadPDF(saida.toByteArray());
-                 var fonteStream = getClass().getResourceAsStream("/fonts/NotoSans-Regular.ttf");
-                 var finalizado = new ByteArrayOutputStream()) {
-                br.com.gestaoservicos.compartilhado.PapelTimbrado.aplicar(documento);
-                var pagina = documento.getPage(documento.getNumberOfPages() - 1);
-                var fonte = PDType0Font.load(documento, fonteStream);
-                try (var stream = new PDPageContentStream(documento, pagina, PDPageContentStream.AppendMode.APPEND, true, true)) {
-                    float margem = 51, largura = (pagina.getMediaBox().getWidth() - margem * 2 - 32) / 2;
-                    desenharAssinatura(stream, fonte, margem, largura, nomeCliente(contrato), "Contratante");
-                    desenharAssinatura(stream, fonte, margem + largura + 32, largura, nomeEmpresa(contrato), "Contratada");
-                }
-                documento.save(finalizado);
-                return finalizado.toByteArray();
-            }
-        } catch (Exception e) {
-            throw new IllegalStateException("Não foi possível gerar o PDF do contrato", e);
+            return saida.toByteArray();
         }
+    }
+
+    @Override
+    protected void desenharAssinaturas(PDPageContentStream stream, PDType0Font fonte, PDPage pagina, Contrato contrato) throws java.io.IOException {
+        float margem = 51, largura = (pagina.getMediaBox().getWidth() - margem * 2 - 32) / 2;
+        desenharAssinatura(stream, fonte, margem, largura, nomeCliente(contrato), "Contratante");
+        desenharAssinatura(stream, fonte, margem + largura + 32, largura, nomeEmpresa(contrato), "Contratada");
+    }
+
+    @Override
+    protected String mensagemErro() {
+        return "Não foi possível gerar o PDF do contrato";
     }
 
     private void desenharAssinatura(PDPageContentStream stream, PDType0Font fonte, float x, float largura, String nome, String papel) throws java.io.IOException {
