@@ -1,5 +1,6 @@
 package br.com.gestaoservicos;
 
+import br.com.gestaoservicos.arquivo.service.SupabaseArmazenamentoAdapter;
 import br.com.gestaoservicos.autenticacao.service.EmailRecuperacaoService;
 import br.com.gestaoservicos.usuario.repository.UsuarioRepository;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,8 @@ class RecuperacaoSenhaIntegrationTest {
     @Autowired ObjectMapper json;
     @Autowired JdbcTemplate banco;
     @MockitoBean EmailRecuperacaoService emails;
-    @MockitoBean br.com.gestaoservicos.arquivo.service.SupabaseStorageService storage;
+    @MockitoBean
+    SupabaseArmazenamentoAdapter storage;
 
     @Test void equipeCompletaERecuperacaoRespeitamUnidade() throws Exception {
         String admin="equipe.admin@test.com", membro="equipe.membro@test.com";

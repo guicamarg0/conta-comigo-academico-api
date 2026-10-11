@@ -10,8 +10,8 @@ import org.springframework.http.HttpStatus;
 import java.util.UUID;
 @Service
 public class ArquivoService {
-    private final ArquivoRepository arquivos;private final SupabaseStorageService storage;
-    public ArquivoService(ArquivoRepository arquivos,SupabaseStorageService storage){this.arquivos=arquivos;this.storage=storage;}
+    private final ArquivoRepository arquivos;private final ArmazenamentoArquivos storage;
+    public ArquivoService(ArquivoRepository arquivos, ArmazenamentoArquivos storage){this.arquivos=arquivos;this.storage=storage;}
     @Transactional
     public ArquivoResponseDTO enviar(UUID unidade,MultipartFile arquivo) {
         if(arquivo.isEmpty()||arquivo.getSize()>5*1024*1024)throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Selecione PDF, PNG ou JPG de até 5 MB.");

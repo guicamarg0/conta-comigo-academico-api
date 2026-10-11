@@ -11,11 +11,11 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 
 @Service
-public class SupabaseStorageService {
+public class SupabaseArmazenamentoAdapter implements ArmazenamentoArquivos  {
     private final RestClient cliente;
     private final String chave,bucket,url;
-    public SupabaseStorageService(@Value("${app.storage.supabaseUrl:${SUPABASE_URL:}}") String url,
-        @Value("${app.storage.chaveServidor:${SUPABASE_SERVICE_ROLE_KEY:}}") String chave,@Value("${app.storage.bucket:${SUPABASE_STORAGE_BUCKET:documentos}}") String bucket) {
+    public SupabaseArmazenamentoAdapter(@Value("${app.storage.supabaseUrl:${SUPABASE_URL:}}") String url,
+                                        @Value("${app.storage.chaveServidor:${SUPABASE_SERVICE_ROLE_KEY:}}") String chave, @Value("${app.storage.bucket:${SUPABASE_STORAGE_BUCKET:documentos}}") String bucket) {
         this.url=url.replaceAll("/$","");this.chave=chave;this.bucket=bucket;
         var fabrica=new JdkClientHttpRequestFactory(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build());
         fabrica.setReadTimeout(Duration.ofSeconds(20));

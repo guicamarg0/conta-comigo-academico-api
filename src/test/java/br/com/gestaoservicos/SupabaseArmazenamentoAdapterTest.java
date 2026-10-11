@@ -1,6 +1,6 @@
 package br.com.gestaoservicos;
 
-import br.com.gestaoservicos.arquivo.service.SupabaseStorageService;
+import br.com.gestaoservicos.arquivo.service.SupabaseArmazenamentoAdapter;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.server.ResponseStatusException;
@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.*;
 
-class SupabaseStorageServiceTest {
+class SupabaseArmazenamentoAdapterTest {
     @Test void enviaELerArquivoPrivadoSemSobrescrever() throws Exception {
         var servidor=HttpServer.create(new InetSocketAddress("127.0.0.1",0),0);
         var recebido=new AtomicReference<byte[]>();
@@ -27,7 +27,7 @@ class SupabaseStorageServiceTest {
         });
         servidor.start();
         try {
-            var storage=new SupabaseStorageService("http://127.0.0.1:"+servidor.getAddress().getPort(),"chave-sintetica","documentos");
+            var storage=new SupabaseArmazenamentoAdapter("http://127.0.0.1:"+servidor.getAddress().getPort(),"chave-sintetica","documentos");
             storage.salvar("unidade/teste.pdf",pdf,"application/pdf");
             assertThat(recebido.get()).isEqualTo(pdf);
             assertThat(autorizacao.get()).isEqualTo("Bearer chave-sintetica");
@@ -37,8 +37,8 @@ class SupabaseStorageServiceTest {
         } finally {servidor.stop(0);}
     }
     @Test void configuracaoAusenteOuParcialTemRespostaControlada() {
-        assertThat(new SupabaseStorageService("","","documentos").configurado()).isFalse();
-        assertThatThrownBy(()->new SupabaseStorageService("https://exemplo.invalid","","documentos").configurado())
+        assertThat(new SupabaseArmazenamentoAdapter("","","documentos").configurado()).isFalse();
+        assertThatThrownBy(()->new SupabaseArmazenamentoAdapter("https://exemplo.invalid","","documentos").configurado())
             .isInstanceOf(ResponseStatusException.class);
     }
 }
